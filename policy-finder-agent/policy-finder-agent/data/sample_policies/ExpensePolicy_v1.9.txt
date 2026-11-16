@@ -1,0 +1,7 @@
+Policy: Expense Policy
+Version: 1.9
+Effective Date: 2025-11-01
+Status: Approved
+Owner: Finance
+
+Expense reports must be submitted within 40 days of purchase.

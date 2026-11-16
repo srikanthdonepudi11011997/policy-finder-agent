@@ -1,0 +1,9 @@
+Policy: PTO Policy
+Version: 1.0
+Effective Date: 2025-01-01
+Status: Approved
+Owner: HR
+
+Full-time employees accrue 15 days of paid time off per year.
+
+Unused PTO carries over up to 5 days.

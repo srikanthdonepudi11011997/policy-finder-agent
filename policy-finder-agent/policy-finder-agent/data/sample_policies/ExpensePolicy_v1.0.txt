@@ -1,0 +1,9 @@
+Policy: Expense Policy
+Version: 1.0
+Effective Date: 2025-02-01
+Status: Approved
+Owner: Finance
+
+Expense reports must be submitted within 30 days of purchase.
+
+Receipts are required for any expense over 25 USD.

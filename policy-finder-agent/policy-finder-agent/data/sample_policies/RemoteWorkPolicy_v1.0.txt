@@ -1,0 +1,7 @@
+Policy: Remote Work Policy
+Version: 1.0
+Effective Date: 2023-06-01
+Status: Retired
+Owner: HR
+
+Employees may work remotely two days per week.

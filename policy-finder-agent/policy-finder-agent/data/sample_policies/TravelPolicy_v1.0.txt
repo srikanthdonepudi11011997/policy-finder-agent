@@ -1,0 +1,9 @@
+Policy: Travel Policy
+Version: 1.0
+Effective Date: 2024-01-01
+Status: Approved
+Owner: Finance
+
+Employees may book economy airfare for trips under 6 hours.
+
+Hotel stays are reimbursed up to 150 USD per night.

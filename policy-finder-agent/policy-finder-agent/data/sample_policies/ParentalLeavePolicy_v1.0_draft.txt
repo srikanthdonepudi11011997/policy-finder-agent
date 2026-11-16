@@ -1,0 +1,7 @@
+Policy: Parental Leave Policy
+Version: 1.0
+Effective Date: 2026-12-01
+Status: Draft
+Owner: HR
+
+DRAFT: Proposes 12 weeks of paid parental leave.

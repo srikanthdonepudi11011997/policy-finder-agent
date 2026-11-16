@@ -1,0 +1,11 @@
+Policy: Travel Policy
+Version: 3.0
+Effective Date: 2026-01-01
+Status: Approved
+Owner: Finance
+
+Employees may book premium economy for flights over 6 hours. Economy is required for shorter flights.
+
+Hotel stays are reimbursed up to 220 USD per night. All trips need manager approval at least 7 days before departure.
+
+Per diem for meals is 75 USD per day.

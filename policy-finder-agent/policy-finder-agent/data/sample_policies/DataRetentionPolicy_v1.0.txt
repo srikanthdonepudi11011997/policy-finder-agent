@@ -1,0 +1,9 @@
+Policy: Data Retention Policy
+Version: 1.0
+Effective Date: 2025-05-01
+Status: Approved
+Owner: Legal
+
+Business records are retained for 7 years.
+
+Email is retained for 3 years.

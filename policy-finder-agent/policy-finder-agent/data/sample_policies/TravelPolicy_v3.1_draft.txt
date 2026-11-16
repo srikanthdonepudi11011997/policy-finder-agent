@@ -1,0 +1,7 @@
+Policy: Travel Policy
+Version: 3.1
+Effective Date: 2026-09-01
+Status: Draft
+Owner: Finance
+
+DRAFT: Proposes raising the hotel limit to 260 USD per night.
