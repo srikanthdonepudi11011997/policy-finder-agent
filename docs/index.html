@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Policy Finder Agent – Live Demo</title>
+<meta name="description" content="Finds the latest approved version of each company policy and answers questions from that version only, with a citation.">
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1b1f24; --muted: #5b6470; --border: #dde1e6;
+    --accent: #2563eb; --accent-soft: #e8efff; --ok: #157347; --ok-soft: #e3f4ea;
+    --warn: #9a5b00; --warn-soft: #fff3dc; --bad: #b42318; --bad-soft: #fde8e6; --idle: #6b7280; --idle-soft: #eef0f3;
+    --mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #171b21; --text: #e6e9ed; --muted: #9aa3ae; --border: #2a3039;
+      --accent: #6ea0ff; --accent-soft: #1b2740; --ok: #5cc98b; --ok-soft: #14291e;
+      --warn: #f0b45a; --warn-soft: #2e2412; --bad: #ff8a7a; --bad-soft: #331a17; --idle: #a1a8b3; --idle-soft: #22272e;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 16px 48px; }
+  header h1 { margin: 0 0 4px; font-size: 26px; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); max-width: 70ch; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; margin: 18px 0 22px; font-size: 14px; color: var(--muted); }
+  .toolbar a { color: var(--accent); text-decoration: none; }
+  .toolbar a:hover { text-decoration: underline; }
+  input, button { font: inherit; color: inherit; }
+  input[type=date] { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 4px 8px; }
+  .grid { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+  .card h2 { margin: 0 0 12px; font-size: 15px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  .latest { list-style: none; margin: 0; padding: 0; }
+  .latest li { padding: 10px 0; border-top: 1px solid var(--border); }
+  .latest li:first-child { border-top: 0; padding-top: 0; }
+  .latest b { display: block; }
+  .latest span { color: var(--muted); font-size: 13px; }
+  form.ask { display: flex; gap: 8px; }
+  form.ask input { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  form.ask input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  form.ask button { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 0 18px; cursor: pointer; font-weight: 600; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; }
+  .chips button { background: var(--accent-soft); color: var(--accent); border: 0; border-radius: 999px; padding: 5px 12px; font-size: 13px; cursor: pointer; }
+  .answer { margin-top: 18px; }
+  .answer .q { color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+  .answer pre { margin: 0; white-space: pre-wrap; word-wrap: break-word; font: inherit; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .answer .src { margin-top: 8px; font-size: 13px; color: var(--muted); }
+  .answer .src code { font-family: var(--mono); font-size: 12px; }
+  .stack { display: grid; gap: 20px; }
+  .tablewrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-top: 1px solid var(--border); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; border-top: 0; font-size: 13px; }
+  td.file { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .b-current { background: var(--ok-soft); color: var(--ok); }
+  .b-draft { background: var(--warn-soft); color: var(--warn); }
+  .b-future { background: var(--accent-soft); color: var(--accent); }
+  .b-retired { background: var(--bad-soft); color: var(--bad); }
+  .b-old { background: var(--idle-soft); color: var(--idle); }
+  details { margin-top: 4px; }
+  summary { cursor: pointer; color: var(--accent); font-size: 13px; }
+  details pre { white-space: pre-wrap; font-family: var(--mono); font-size: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+  footer { margin-top: 28px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Policy Finder Agent</h1>
+    <p>Reads a folder of company policy documents, works out the latest approved version of each policy, and answers questions from that version only, with a citation. Drafts, retired and future-dated versions are never treated as current policy.</p>
+  </header>
+
+  <div class="toolbar">
+    <label>Policies in force as of <input type="date" id="asof"></label>
+    <a href="https://github.com/srikanthdonepudi11011997/policy-finder-agent">Source on GitHub</a>
+  </div>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Latest approved policies</h2>
+      <ul class="latest" id="latest"></ul>
+    </section>
+
+    <div class="stack">
+      <section class="card">
+        <h2>Ask about a company policy</h2>
+        <form class="ask" id="askform">
+          <input id="q" type="text" placeholder="e.g. What is the hotel limit for travel?" autocomplete="off" aria-label="Question">
+          <button type="submit">Ask</button>
+        </form>
+        <div class="chips" id="chips"></div>
+        <div class="answer" id="answer" hidden>
+          <div class="q" id="answer-q"></div>
+          <pre id="answer-text"></pre>
+          <div class="src" id="answer-src"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Every version and why it is or isn't current</h2>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Policy</th><th>Version</th><th>Effective</th><th>Status</th><th>Result</th><th>File</th></tr></thead>
+            <tbody id="versions"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <footer>
+    This demo runs entirely in your browser on the repository's sample policies (<code>data/sample_policies</code>), using the same rules and BM25 search as the Python agent. Answers show the relevant policy text, like the agent does when no local LLM is configured.
+  </footer>
+</div>
+
+<script>
+// Sample policy files from data/sample_policies (generated at build time).
+const FILES = [{"path":"DataRetentionPolicy_v1.0.txt","text":"Policy: Data Retention Policy\nVersion: 1.0\nEffective Date: 2025-05-01\nStatus: Approved\nOwner: Legal\n\nBusiness records are retained for 7 years.\n\nEmail is retained for 3 years.\n"},{"path":"ExpensePolicy_v1.0.txt","text":"Policy: Expense Policy\nVersion: 1.0\nEffective Date: 2025-02-01\nStatus: Approved\nOwner: Finance\n\nExpense reports must be submitted within 30 days of purchase.\n\nReceipts are required for any expense over 25 USD.\n"},{"path":"ExpensePolicy_v1.10.txt","text":"Policy: Expense Policy\nVersion: 1.10\nEffective Date: 2025-11-01\nStatus: Approved\nOwner: Finance\n\nExpense reports must be submitted within 45 days of purchase.\n\nReceipts are required for any expense over 50 USD.\n"},{"path":"ExpensePolicy_v1.9.txt","text":"Policy: Expense Policy\nVersion: 1.9\nEffective Date: 2025-11-01\nStatus: Approved\nOwner: Finance\n\nExpense reports must be submitted within 40 days of purchase.\n"},{"path":"PTOPolicy_v1.0.txt","text":"Policy: PTO Policy\nVersion: 1.0\nEffective Date: 2025-01-01\nStatus: Approved\nOwner: HR\n\nFull-time employees accrue 15 days of paid time off per year.\n\nUnused PTO carries over up to 5 days.\n"},{"path":"ParentalLeavePolicy_v1.0_draft.txt","text":"Policy: Parental Leave Policy\nVersion: 1.0\nEffective Date: 2026-12-01\nStatus: Draft\nOwner: HR\n\nDRAFT: Proposes 12 weeks of paid parental leave.\n"},{"path":"RemoteWorkPolicy_v1.0.txt","text":"Policy: Remote Work Policy\nVersion: 1.0\nEffective Date: 2023-06-01\nStatus: Retired\nOwner: HR\n\nEmployees may work remotely two days per week.\n"},{"path":"RemoteWorkPolicy_v2.0.txt","text":"Policy: Remote Work Policy\nVersion: 2.0\nEffective Date: 2025-03-15\nStatus: Approved\nOwner: HR\n\nEmployees may work remotely up to three days per week with manager approval.\n\nRemote workers must be reachable during core hours, 10am to 3pm local time.\n"},{"path":"TravelPolicy_v1.0.txt","text":"Policy: Travel Policy\nVersion: 1.0\nEffective Date: 2024-01-01\nStatus: Approved\nOwner: Finance\n\nEmployees may book economy airfare for trips under 6 hours.\n\nHotel stays are reimbursed up to 150 USD per night.\n"},{"path":"TravelPolicy_v2.0.txt","text":"Policy: Travel Policy\nVersion: 2.0\nEffective Date: 2025-01-01\nStatus: Approved\nOwner: Finance\n\nEmployees may book economy airfare for trips under 6 hours.\n\nHotel stays are reimbursed up to 180 USD per night. Trips must be approved by a manager.\n"},{"path":"TravelPolicy_v3.0.txt","text":"Policy: Travel Policy\nVersion: 3.0\nEffective Date: 2026-01-01\nStatus: Approved\nOwner: Finance\n\nEmployees may book premium economy for flights over 6 hours. Economy is required for shorter flights.\n\nHotel stays are reimbursed up to 220 USD per night. All trips need manager approval at least 7 days before departure.\n\nPer diem for meals is 75 USD per day.\n"},{"path":"TravelPolicy_v3.1_draft.txt","text":"Policy: Travel Policy\nVersion: 3.1\nEffective Date: 2026-09-01\nStatus: Draft\nOwner: Finance\n\nDRAFT: Proposes raising the hotel limit to 260 USD per night.\n"}];
+
+// ---- metadata (port of metadata.py) ---------------------------------
+const FIELD = {
+  policy_name: /^\s*(?:policy(?:\s+name)?|title)\s*:\s*(.+?)\s*$/im,
+  version: /^\s*version\s*:\s*v?([\w.\-]+)\s*$/im,
+  effective_date: /^\s*(?:effective(?:\s+date)?)\s*:\s*(.+?)\s*$/im,
+  status: /^\s*status\s*:\s*(\w+)/im,
+  owner: /^\s*owner\s*:\s*(.+?)\s*$/im,
+};
+const FILENAME = /^(.+?)_v([\d.]+)(?:_(\d{4}-\d{2}-\d{2}))?$/;
+const pad = n => String(n).padStart(2, "0");
+const isoOf = (y, m, d) => {
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d ? `${y}-${pad(m)}-${pad(d)}` : null;
+};
+function parseDate(raw) {
+  raw = raw.trim();
+  let m;
+  if ((m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/))) return isoOf(+m[1], +m[2], +m[3]);
+  if ((m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/))) return isoOf(+m[3], +m[1], +m[2]);
+  const t = Date.parse(raw + " UTC");
+  if (!isNaN(t)) { const d = new Date(t); return isoOf(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate()); }
+  return null;
+}
+const capitalize = s => s ? s[0].toUpperCase() + s.slice(1).toLowerCase() : s;
+function extractMetadata(text, path) {
+  const header = text.slice(0, 2000);
+  const found = {};
+  for (const [k, rx] of Object.entries(FIELD)) { const m = header.match(rx); found[k] = m ? m[1].trim() : null; }
+  const stem = path.replace(/^.*[\\/]/, "").replace(/\.[^.]*$/, "");
+  const fm = stem.match(FILENAME);
+  const name = found.policy_name || (fm ? fm[1].replace(/_/g, " ") : stem.replace(/_/g, " "));
+  const version = found.version || (fm ? fm[2] : "0");
+  let eff = found.effective_date ? parseDate(found.effective_date) : null;
+  if (!eff && fm && fm[3]) eff = parseDate(fm[3]);
+  if (!eff) eff = "0001-01-01";
+  return { policy_name: name, version, effective_date: eff, status: capitalize(found.status || "Approved"), owner: found.owner || "Unknown" };
+}
+function makeDoc(path, text) {
+  const d = { path, text, ...extractMetadata(text, path) };
+  d.key = d.policy_name.toLowerCase().split(/\s+/).filter(Boolean).join(" ");
+  d.citation = `${d.policy_name} v${d.version} (effective ${d.effective_date}, ${d.path})`;
+  return d;
+}
+
+// ---- latest version (port of latest.py) -----------------------------
+const parseVersion = v => (v.match(/\d+/g) || ["0"]).map(Number);
+function cmpTuple(a, b) {
+  for (let i = 0; i < Math.min(a.length, b.length); i++) if (a[i] !== b[i]) return a[i] < b[i] ? -1 : 1;
+  return a.length - b.length;
+}
+const cmpDoc = (a, b) => a.effective_date < b.effective_date ? -1 : a.effective_date > b.effective_date ? 1 : cmpTuple(parseVersion(a.version), parseVersion(b.version));
+function pickLatest(docs, asOf) {
+  const groups = new Map();
+  for (const d of docs) {
+    if (d.status.toLowerCase() === "approved" && d.effective_date <= asOf) {
+      if (!groups.has(d.key)) groups.set(d.key, []);
+      groups.get(d.key).push(d);
+    }
+  }
+  const out = new Map();
+  for (const [k, v] of groups) { let best = v[0]; for (const d of v) if (cmpDoc(d, best) > 0) best = d; out.set(k, best); }
+  return out;
+}
+
+// ---- search (port of search.py) -------------------------------------
+const STOPWORDS = new Set(["the","a","an","is","are","of","to","for","and","or","in","on","what","whats","who","how",
+  "do","does","i","we","my","our","me","can","about","current","latest","policy","policies",
+  "show","tell","give","please","any","there","it","that","this","with","be","get"]);
+const tokenize = text => (text.toLowerCase().match(/[a-z0-9]+/g) || []).filter(t => !STOPWORDS.has(t));
+const wordCount = s => s.split(/\s+/).filter(Boolean).length;
+function chunkDoc(doc, maxWords = 120) {
+  const paras = doc.text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  const chunks = []; let buf = [];
+  for (const p of paras) {
+    buf.push(p);
+    if (buf.reduce((n, x) => n + wordCount(x), 0) >= maxWords) { chunks.push({ doc, text: buf.join("\n\n") }); buf = []; }
+  }
+  if (buf.length) chunks.push({ doc, text: buf.join("\n\n") });
+  return chunks;
+}
+class BM25Index {
+  constructor(chunks, k1 = 1.5, b = 0.75) {
+    this.chunks = chunks; this.k1 = k1; this.b = b;
+    this.tokens = chunks.map(c => tokenize(c.doc.policy_name + " " + c.text));
+    this.avg = this.tokens.length ? this.tokens.reduce((n, t) => n + t.length, 0) / this.tokens.length : 0;
+    const df = new Map();
+    for (const toks of this.tokens) for (const t of new Set(toks)) df.set(t, (df.get(t) || 0) + 1);
+    const n = chunks.length;
+    this.idf = new Map([...df].map(([t, c]) => [t, Math.log(1 + (n - c + 0.5) / (c + 0.5))]));
+  }
+  search(query, k = 3) {
+    const q = tokenize(query);
+    const scored = [];
+    this.chunks.forEach((chunk, i) => {
+      const toks = this.tokens[i];
+      const tf = new Map(); for (const t of toks) tf.set(t, (tf.get(t) || 0) + 1);
+      let score = 0;
+      for (const t of q) if (tf.has(t)) {
+        const f = tf.get(t);
+        score += (this.idf.get(t) || 0) * f * (this.k1 + 1) / (f + this.k1 * (1 - this.b + this.b * toks.length / this.avg));
+      }
+      if (score > 0) scored.push([score, chunk]);
+    });
+    return scored.sort((a, b) => b[0] - a[0]).slice(0, k);
+  }
+}
+
+// ---- agent (port of agent.py) ---------------------------------------
+class PolicyAgent {
+  constructor(files, asOf) {
+    this.asOf = asOf;
+    this.docs = files.map(f => makeDoc(f.path, f.text.replace(/\r\n?/g, "\n")));
+    this.latest = pickLatest(this.docs, asOf);
+    this.index = new BM25Index([...this.latest.values()].flatMap(d => chunkDoc(d)));
+  }
+  latestPolicies() {
+    return [...this.latest.values()].sort((a, b) => { const x = a.policy_name.toLowerCase(), y = b.policy_name.toLowerCase(); return x < y ? -1 : x > y ? 1 : 0; });
+  }
+  versions(name) {
+    const key = name.toLowerCase().split(/\s+/).filter(Boolean).join(" ");
+    return this.docs.filter(d => d.key === key).sort((a, b) => cmpDoc(b, a));
+  }
+  namedPolicy(question) {
+    const q = new Set(tokenize(question));
+    let best = null, bestN = 0;
+    for (const d of this.docs) {
+      const n = [...new Set(tokenize(d.policy_name))].filter(t => q.has(t)).length;
+      if (n > bestN) { best = d.key; bestN = n; }
+    }
+    return best;
+  }
+  ask(question) {
+    const named = this.namedPolicy(question);
+    if (named && !this.latest.has(named)) {
+      const vs = this.versions(named);
+      const states = [...new Set(vs.map(v => `${v.status} v${v.version}`))].sort().join(", ");
+      return { text: `There is no approved, in-force version of '${vs[0].policy_name}' (${states}). Drafts, retired and future-dated versions are not current policy.`, sources: vs.map(v => v.citation) };
+    }
+    let hits = this.index.search(question, 3);
+    if (named) { const f = hits.filter(h => h[1].doc.key === named); if (f.length) hits = f; }
+    if (!hits.length) return { text: "No matching policy was found.", sources: [] };
+    const top = hits[0][1].doc;
+    const context = hits.filter(h => h[1].doc.key === top.key).map(h => h[1].text).join("\n\n");
+    return { text: `${top.policy_name} v${top.version}, effective ${top.effective_date}\n\n${context}`, sources: [top.citation] };
+  }
+  why(d) {
+    if (d.status.toLowerCase() !== "approved") return [d.status, d.status.toLowerCase() === "draft" ? "b-draft" : "b-retired", `${d.status} – not current policy`];
+    if (d.effective_date > this.asOf) return ["Future", "b-future", "Not in effect yet"];
+    const cur = this.latest.get(d.key);
+    if (cur === d) return ["Current", "b-current", "Latest approved version"];
+    return ["Superseded", "b-old", `Replaced by v${cur.version}`];
+  }
+}
+
+// ---- UI --------------------------------------------------------------
+const $ = id => document.getElementById(id);
+const esc = s => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+const EXAMPLES = ["What is the hotel limit for travel?", "How many PTO days do I get?", "How long is email kept?",
+  "When are expense reports due?", "What is the parental leave policy?", "What is the pet policy?"];
+let agent;
+
+function render() {
+  agent = new PolicyAgent(FILES, $("asof").value || today());
+  $("latest").innerHTML = agent.latestPolicies().map(d =>
+    `<li><b>${esc(d.policy_name)}</b><span>v${esc(d.version)} · effective ${d.effective_date} · ${esc(d.owner)}</span></li>`).join("")
+    || "<li><span>No approved policy is in force on this date.</span></li>";
+  const rows = [...agent.docs].sort((a, b) => a.key < b.key ? -1 : a.key > b.key ? 1 : cmpDoc(b, a));
+  $("versions").innerHTML = rows.map(d => {
+    const [label, cls, note] = agent.why(d);
+    return `<tr><td>${esc(d.policy_name)}</td><td>v${esc(d.version)}</td><td>${d.effective_date}</td><td>${esc(d.status)}</td>` +
+      `<td><span class="badge ${cls}" title="${esc(note)}">${label}</span> <span style="color:var(--muted);font-size:13px">${esc(note)}</span></td>` +
+      `<td class="file">${esc(d.path)}</td></tr>`;
+  }).join("");
+  if (!$("answer").hidden && $("answer-q").dataset.q) ask($("answer-q").dataset.q);
+}
+
+function ask(question) {
+  question = question.trim();
+  if (!question) return;
+  const ans = agent.ask(question);
+  $("answer-q").textContent = "Q: " + question;
+  $("answer-q").dataset.q = question;
+  $("answer-text").textContent = ans.text;
+  $("answer-src").innerHTML = ans.sources.map(s => `Source: <code>${esc(s)}</code>`).join("<br>");
+  $("answer").hidden = false;
+}
+
+$("asof").value = today();
+$("asof").addEventListener("change", render);
+$("askform").addEventListener("submit", e => { e.preventDefault(); ask($("q").value); });
+$("chips").innerHTML = EXAMPLES.map(q => `<button type="button">${esc(q)}</button>`).join("");
+$("chips").addEventListener("click", e => { if (e.target.tagName === "BUTTON") { $("q").value = e.target.textContent; ask(e.target.textContent); } });
+render();
+</script>
+</body>
+</html>
